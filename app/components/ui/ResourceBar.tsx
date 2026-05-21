@@ -268,8 +268,13 @@ function ModeToggle({
 
       {settingsOpen && (
         <div
-          className="glass absolute top-full mt-2 left-1/2 -translate-x-1/2 p-3 rounded-lg z-50 min-w-[260px]"
-          style={{ border: "1px solid var(--ce-gray-light)" }}
+          className="absolute top-full mt-2 left-1/2 -translate-x-1/2 p-3 rounded-lg z-50 min-w-[260px]"
+          style={{
+            background: "rgba(14, 14, 14, 0.97)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            border: "1px solid rgba(127, 214, 66, 0.2)",
+          }}
         >
           <div className="text-[11px] uppercase tracking-wider text-[var(--ce-text-secondary)] mb-2">
             Backend Mode
