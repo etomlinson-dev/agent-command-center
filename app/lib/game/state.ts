@@ -13,22 +13,22 @@ import { connectSSE, submitTask, submitSwarmTask } from "./sse-client";
 export type BackendMode = "claude-code" | "api-key";
 
 const BUILDING_LAYOUT: Record<AgentCategory, { position: [number, number, number]; size: [number, number, number] }> = {
-  "core-dev":       { position: [0, 0, 0],      size: [4, 3, 4] },
-  swarm:            { position: [-8, 0, -6],     size: [3, 2.5, 3] },
-  consensus:        { position: [8, 0, -6],      size: [3.5, 2.5, 3.5] },
-  github:           { position: [-12, 0, 4],     size: [4, 3.5, 4] },
-  performance:      { position: [12, 0, 4],      size: [3, 2.5, 3] },
-  security:         { position: [-6, 0, 10],     size: [3, 3, 3] },
-  memory:           { position: [6, 0, 10],      size: [3, 2.5, 3] },
-  browser:          { position: [-14, 0, -10],   size: [2.5, 2, 2.5] },
-  release:          { position: [14, 0, -10],    size: [2.5, 2, 2.5] },
-  training:         { position: [-10, 0, 14],    size: [2.5, 2, 2.5] },
-  docs:             { position: [10, 0, 14],     size: [2.5, 2, 2.5] },
-  architecture:     { position: [0, 0, -12],     size: [3, 2.5, 3] },
-  communication:    { position: [-16, 0, 10],    size: [2.5, 2, 2.5] },
-  data:             { position: [16, 0, 10],     size: [2.5, 2, 2.5] },
-  infrastructure:   { position: [0, 0, 16],      size: [3, 2.5, 3] },
-  specialized:      { position: [16, 0, -6],     size: [2, 1.5, 2] },
+  "core-dev":       { position: [0, 0, 0],       size: [4, 3, 4] },
+  swarm:            { position: [-6, 0, -4.5],   size: [3, 2.5, 3] },
+  consensus:        { position: [6, 0, -4.5],    size: [3.5, 2.5, 3.5] },
+  github:           { position: [-9, 0, 3],      size: [4, 3.5, 4] },
+  performance:      { position: [9, 0, 3],       size: [3, 2.5, 3] },
+  security:         { position: [-4.5, 0, 7.5],  size: [3, 3, 3] },
+  memory:           { position: [4.5, 0, 7.5],   size: [3, 2.5, 3] },
+  browser:          { position: [-10, 0, -7.5],  size: [2.5, 2, 2.5] },
+  release:          { position: [10, 0, -7.5],   size: [2.5, 2, 2.5] },
+  training:         { position: [-7.5, 0, 10],   size: [2.5, 2, 2.5] },
+  docs:             { position: [7.5, 0, 10],    size: [2.5, 2, 2.5] },
+  architecture:     { position: [0, 0, -9],      size: [3, 2.5, 3] },
+  communication:    { position: [-12, 0, 7.5],   size: [2.5, 2, 2.5] },
+  data:             { position: [12, 0, 7.5],    size: [2.5, 2, 2.5] },
+  infrastructure:   { position: [0, 0, 12],      size: [3, 2.5, 3] },
+  specialized:      { position: [12, 0, -4.5],   size: [2, 1.5, 2] },
 };
 
 function buildBuildings(): Building[] {

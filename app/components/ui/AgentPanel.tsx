@@ -24,7 +24,7 @@ export function AgentPanel() {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 40 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="glass-strong fixed top-20 right-4 bottom-16 z-30 w-[380px] flex flex-col overflow-hidden"
+          className="glass-strong fixed top-[100px] right-4 bottom-16 z-30 w-[380px] flex flex-col overflow-hidden"
         >
           {/* Header */}
           <div className="px-4 py-3 border-b border-[rgba(127,214,66,0.1)] flex items-center justify-between shrink-0">
