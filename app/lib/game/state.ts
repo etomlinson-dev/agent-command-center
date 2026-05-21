@@ -10,6 +10,8 @@ import { CATEGORY_META } from "@/app/types/agent";
 import { generateDummyAgents } from "./dummy-agents";
 import { connectSSE, submitTask, submitSwarmTask } from "./sse-client";
 
+export type BackendMode = "claude-code" | "api-key";
+
 const BUILDING_LAYOUT: Record<AgentCategory, { position: [number, number, number]; size: [number, number, number] }> = {
   "core-dev":       { position: [0, 0, 0],      size: [4, 3, 4] },
   swarm:            { position: [-8, 0, -6],     size: [3, 2.5, 3] },
@@ -89,6 +91,11 @@ interface GameState {
   ratchetPanelOpen: boolean;
   ratchetPanelAgentId: string | null;
 
+  // Backend mode
+  backendMode: BackendMode;
+  hasApiKey: boolean;
+  settingsOpen: boolean;
+
   selectAgent: (id: string | null) => void;
   selectBuilding: (id: string | null) => void;
   setHoveredAgent: (id: string | null) => void;
@@ -122,6 +129,11 @@ interface GameState {
   removeActiveCycle: (id: string) => void;
   openRatchetPanel: (agentId: string | null) => void;
   closeRatchetPanel: () => void;
+
+  // Backend mode actions
+  setBackendMode: (mode: BackendMode, apiKey?: string) => Promise<void>;
+  toggleSettings: () => void;
+  fetchConfig: () => Promise<void>;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -162,6 +174,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   activeCycles: [],
   ratchetPanelOpen: false,
   ratchetPanelAgentId: null,
+
+  backendMode: "claude-code",
+  hasApiKey: false,
+  settingsOpen: false,
 
   selectAgent: (id) => set({ selectedAgentId: id, selectedBuildingId: null }),
   selectBuilding: (id) => set({ selectedBuildingId: id, selectedAgentId: null }),
@@ -454,10 +470,51 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   openRatchetPanel: (agentId) => set({ ratchetPanelOpen: true, ratchetPanelAgentId: agentId }),
   closeRatchetPanel: () => set({ ratchetPanelOpen: false, ratchetPanelAgentId: null }),
+
+  // --- Backend mode actions ---
+
+  setBackendMode: async (mode, apiKey) => {
+    try {
+      const body: Record<string, string> = { backendMode: mode };
+      if (apiKey !== undefined) body.apiKey = apiKey;
+      const res = await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      set({ backendMode: data.backendMode, hasApiKey: data.hasApiKey });
+      get().addEvent({
+        type: "system",
+        agentId: null,
+        message: `Backend switched to ${data.backendMode === "api-key" ? "API Key" : "Claude Code"} mode`,
+        category: null,
+      });
+    } catch {
+      get().addEvent({
+        type: "agent_error",
+        agentId: null,
+        message: "Failed to update backend mode",
+        category: null,
+      });
+    }
+  },
+
+  toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
+
+  fetchConfig: async () => {
+    try {
+      const res = await fetch("/api/config");
+      const data = await res.json();
+      set({ backendMode: data.backendMode, hasApiKey: data.hasApiKey });
+    } catch { /* ignore */ }
+  },
 }));
 
 // SSE connection — auto-connect on module load (client only)
 if (typeof window !== "undefined") {
+  useGameStore.getState().fetchConfig();
+
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   function connect() {

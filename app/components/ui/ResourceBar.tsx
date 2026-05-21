@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { useGameStore } from "@/app/lib/game/state";
+import type { BackendMode } from "@/app/lib/game/state";
 
 function useAnimatedValue(target: number, duration = 600): number {
   const [display, setDisplay] = useState(target);
@@ -50,6 +51,11 @@ export function ResourceBar() {
   const connected = useGameStore((s) => s.connected);
   const ratchetHistory = useGameStore((s) => s.ratchetHistory);
   const openRatchetPanel = useGameStore((s) => s.openRatchetPanel);
+  const backendMode = useGameStore((s) => s.backendMode);
+  const hasApiKey = useGameStore((s) => s.hasApiKey);
+  const settingsOpen = useGameStore((s) => s.settingsOpen);
+  const toggleSettings = useGameStore((s) => s.toggleSettings);
+  const setBackendMode = useGameStore((s) => s.setBackendMode);
   const claude = resources.claude;
   const workingCount = agents.filter((a) => a.status === "working").length;
   const evolvingCount = agents.filter((a) => a.status === "evolving").length;
@@ -80,6 +86,16 @@ export function ResourceBar() {
         <span className="text-[10px] uppercase tracking-wider text-[var(--ce-text-secondary)]">
           {connected ? "Live" : "Offline"}
         </span>
+      </div>
+      <Divider />
+      <div className="relative">
+        <ModeToggle
+          mode={backendMode}
+          hasApiKey={hasApiKey}
+          settingsOpen={settingsOpen}
+          onToggleSettings={toggleSettings}
+          onSetMode={setBackendMode}
+        />
       </div>
       <Divider />
       <Metric
@@ -184,6 +200,138 @@ function Metric({
             className="h-full rounded-full transition-all duration-500"
             style={{ width: `${pct * 100}%`, backgroundColor: color }}
           />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ModeToggle({
+  mode,
+  hasApiKey,
+  settingsOpen,
+  onToggleSettings,
+  onSetMode,
+}: {
+  mode: BackendMode;
+  hasApiKey: boolean;
+  settingsOpen: boolean;
+  onToggleSettings: () => void;
+  onSetMode: (mode: BackendMode, apiKey?: string) => Promise<void>;
+}) {
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const isApiMode = mode === "api-key";
+
+  const handleSwitch = useCallback(async () => {
+    if (isApiMode) {
+      await onSetMode("claude-code");
+    } else {
+      if (hasApiKey) {
+        await onSetMode("api-key");
+      } else {
+        onToggleSettings();
+      }
+    }
+  }, [isApiMode, hasApiKey, onSetMode, onToggleSettings]);
+
+  const handleSaveKey = useCallback(async () => {
+    if (!apiKeyInput.trim()) return;
+    await onSetMode("api-key", apiKeyInput.trim());
+    setApiKeyInput("");
+    onToggleSettings();
+  }, [apiKeyInput, onSetMode, onToggleSettings]);
+
+  return (
+    <div className="flex flex-col items-center gap-0.5 min-w-[90px]">
+      <span className="text-[10px] uppercase tracking-wider text-[var(--ce-text-secondary)]">
+        Backend
+      </span>
+      <button
+        onClick={handleSwitch}
+        className="flex items-center gap-1.5 px-2 py-0.5 rounded-full transition-all hover:brightness-125"
+        style={{
+          backgroundColor: isApiMode ? "rgba(163, 230, 53, 0.15)" : "rgba(127, 214, 66, 0.15)",
+          border: `1px solid ${isApiMode ? "#A3E635" : "#7FD642"}40`,
+        }}
+      >
+        <div
+          className="w-1.5 h-1.5 rounded-full"
+          style={{
+            backgroundColor: isApiMode ? "#A3E635" : "#7FD642",
+            boxShadow: `0 0 4px ${isApiMode ? "#A3E635" : "#7FD642"}`,
+          }}
+        />
+        <span className="text-[11px] font-mono font-semibold" style={{ color: isApiMode ? "#A3E635" : "#7FD642" }}>
+          {isApiMode ? "API" : "CC"}
+        </span>
+      </button>
+
+      {settingsOpen && (
+        <div
+          className="glass absolute top-full mt-2 right-0 p-3 rounded-lg z-50 min-w-[260px]"
+          style={{ border: "1px solid var(--ce-gray-light)" }}
+        >
+          <div className="text-[11px] uppercase tracking-wider text-[var(--ce-text-secondary)] mb-2">
+            Backend Mode
+          </div>
+
+          <div className="flex gap-2 mb-3">
+            <button
+              onClick={() => onSetMode("claude-code")}
+              className="flex-1 px-2 py-1.5 rounded text-[11px] font-mono transition-all"
+              style={{
+                backgroundColor: !isApiMode ? "rgba(127, 214, 66, 0.2)" : "transparent",
+                border: `1px solid ${!isApiMode ? "#7FD642" : "var(--ce-gray-light)"}`,
+                color: !isApiMode ? "#7FD642" : "var(--ce-text-secondary)",
+              }}
+            >
+              Claude Code
+            </button>
+            <button
+              onClick={() => hasApiKey ? onSetMode("api-key") : undefined}
+              className="flex-1 px-2 py-1.5 rounded text-[11px] font-mono transition-all"
+              style={{
+                backgroundColor: isApiMode ? "rgba(163, 230, 53, 0.2)" : "transparent",
+                border: `1px solid ${isApiMode ? "#A3E635" : "var(--ce-gray-light)"}`,
+                color: isApiMode ? "#A3E635" : "var(--ce-text-secondary)",
+                opacity: !hasApiKey && !isApiMode ? 0.5 : 1,
+              }}
+            >
+              API Key
+            </button>
+          </div>
+
+          <div className="text-[10px] text-[var(--ce-text-secondary)] mb-1.5">
+            {hasApiKey ? "API key configured" : "Enter Anthropic API key"}
+          </div>
+          <div className="flex gap-1.5">
+            <input
+              type="password"
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSaveKey()}
+              placeholder="sk-ant-..."
+              className="flex-1 px-2 py-1 rounded text-[11px] font-mono bg-[var(--ce-gray-darkest)] text-[var(--ce-text-primary)] border border-[var(--ce-gray-light)] outline-none focus:border-[var(--ce-green-primary)]"
+            />
+            <button
+              onClick={handleSaveKey}
+              className="px-2 py-1 rounded text-[10px] font-semibold uppercase transition-all hover:brightness-125"
+              style={{
+                backgroundColor: "rgba(127, 214, 66, 0.2)",
+                color: "#7FD642",
+                border: "1px solid #7FD64240",
+              }}
+            >
+              Save
+            </button>
+          </div>
+
+          <button
+            onClick={onToggleSettings}
+            className="mt-2 text-[10px] text-[var(--ce-text-secondary)] hover:text-[var(--ce-text-primary)] transition-colors w-full text-center"
+          >
+            Close
+          </button>
         </div>
       )}
     </div>

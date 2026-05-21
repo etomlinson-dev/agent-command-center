@@ -1,6 +1,8 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { Options, PermissionMode, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { Trace, Evaluation, ProposedImprovement, ImprovementType, AgentConfig } from "@/app/types/ratchet";
+import { getBackendMode } from "@/app/lib/config";
+import { runApiCompletion } from "@/app/lib/agents/api-adapter";
 
 interface ImprovementSuggestion {
   type: ImprovementType;
@@ -62,23 +64,29 @@ export async function proposeImprovements(
   }
 
   try {
-    const options: Partial<Options> = {
-      allowedTools: [],
-      permissionMode: "default" as PermissionMode,
-      maxTurns: 1,
-      maxBudgetUsd: 0.1,
-      persistSession: false,
-    };
-
     let resultText = "";
-    const stream = query({
-      prompt: buildAnalysisPrompt(trace, evaluation, config),
-      options: options as Options,
-    });
 
-    for await (const message of stream) {
-      if (message.type === "result" && (message as SDKMessage & { subtype?: string }).subtype === "success") {
-        resultText = (message as SDKMessage & { result?: string }).result ?? "";
+    if (getBackendMode() === "api-key") {
+      const response = await runApiCompletion(buildAnalysisPrompt(trace, evaluation, config));
+      resultText = response.text;
+    } else {
+      const options: Partial<Options> = {
+        allowedTools: [],
+        permissionMode: "default" as PermissionMode,
+        maxTurns: 1,
+        maxBudgetUsd: 0.1,
+        persistSession: false,
+      };
+
+      const stream = query({
+        prompt: buildAnalysisPrompt(trace, evaluation, config),
+        options: options as Options,
+      });
+
+      for await (const message of stream) {
+        if (message.type === "result" && (message as SDKMessage & { subtype?: string }).subtype === "success") {
+          resultText = (message as SDKMessage & { result?: string }).result ?? "";
+        }
       }
     }
 

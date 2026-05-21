@@ -9,6 +9,8 @@ import type {
 import { getRegistry, type AgentProfile } from "./agent-registry";
 import { getActiveSession } from "./sdk-manager";
 import type { ChatMessage } from "@/app/types/chat";
+import { getBackendMode } from "@/app/lib/config";
+import { runApiChat } from "./api-adapter";
 
 interface ChatSession {
   agentId: string;
@@ -153,16 +155,38 @@ export async function startChatStream(
   registry.markReal(agentId, `chat-${Date.now()}`);
 
   try {
-    const options = buildOptions(agent.profile, cwd ?? process.cwd());
-    const stream = query({
-      prompt,
-      options: { ...options, abortController } as Options,
-    });
+    if (getBackendMode() === "api-key") {
+      let accumulated = "";
+      await runApiChat(prompt, agent.profile, (text) => {
+        accumulated += text;
+        onMessage({
+          id: makeId(),
+          agentId,
+          role: "assistant",
+          content: accumulated,
+          timestamp: Date.now(),
+        });
+      }, abortController.signal);
 
-    for await (const message of stream) {
-      const chatMessages = sdkMessageToChat(agentId, message);
-      for (const chatMsg of chatMessages) {
-        onMessage(chatMsg);
+      onMessage({
+        id: makeId(),
+        agentId,
+        role: "result",
+        content: accumulated || "Completed",
+        timestamp: Date.now(),
+      });
+    } else {
+      const options = buildOptions(agent.profile, cwd ?? process.cwd());
+      const stream = query({
+        prompt,
+        options: { ...options, abortController } as Options,
+      });
+
+      for await (const message of stream) {
+        const chatMessages = sdkMessageToChat(agentId, message);
+        for (const chatMsg of chatMessages) {
+          onMessage(chatMsg);
+        }
       }
     }
   } catch (err) {

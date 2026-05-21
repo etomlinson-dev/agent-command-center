@@ -6,6 +6,8 @@ import { emitHandoff } from "./handoff-manager";
 import type { ExecutionPlan, PlanAgent, HandoffEvent } from "@/app/types/plan";
 import type { AgentCategory } from "@/app/types/agent";
 import { CATEGORY_META } from "@/app/types/agent";
+import { getBackendMode } from "@/app/lib/config";
+import { runApiCompletion } from "./api-adapter";
 
 const plans = new Map<string, ExecutionPlan>();
 
@@ -79,23 +81,29 @@ export async function proposePlan(task: string): Promise<ExecutionPlan> {
   let complexity: "low" | "medium" | "high";
 
   try {
-    const options: Partial<Options> = {
-      allowedTools: [],
-      permissionMode: "default" as PermissionMode,
-      maxTurns: 1,
-      maxBudgetUsd: 0.1,
-      persistSession: false,
-    };
-
     let resultText = "";
-    const stream = query({
-      prompt: `${ORCHESTRATOR_PROMPT}\n\nTask: ${task}`,
-      options: options as Options,
-    });
 
-    for await (const message of stream) {
-      if (message.type === "result" && message.subtype === "success") {
-        resultText = message.result;
+    if (getBackendMode() === "api-key") {
+      const response = await runApiCompletion(`${ORCHESTRATOR_PROMPT}\n\nTask: ${task}`);
+      resultText = response.text;
+    } else {
+      const options: Partial<Options> = {
+        allowedTools: [],
+        permissionMode: "default" as PermissionMode,
+        maxTurns: 1,
+        maxBudgetUsd: 0.1,
+        persistSession: false,
+      };
+
+      const stream = query({
+        prompt: `${ORCHESTRATOR_PROMPT}\n\nTask: ${task}`,
+        options: options as Options,
+      });
+
+      for await (const message of stream) {
+        if (message.type === "result" && message.subtype === "success") {
+          resultText = message.result;
+        }
       }
     }
 

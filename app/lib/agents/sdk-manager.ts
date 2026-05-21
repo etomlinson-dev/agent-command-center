@@ -6,6 +6,8 @@ import type { ClaudeUsage } from "@/app/types/game";
 import { recordToolCall } from "@/app/lib/ratchet/trace-capture";
 import { runRatchetCycle, getAgentConfig, getRatchetHistoryForAgent } from "@/app/lib/ratchet/ratchet-loop";
 import { writeAllForRatchet } from "@/app/lib/obsidian/writer";
+import { getBackendMode } from "@/app/lib/config";
+import { runApiTask } from "./api-adapter";
 
 interface ActiveSession {
   agentId: string;
@@ -94,7 +96,11 @@ export async function spawnAgentTask(
   emitUsage();
   emitEvent({ type: "task_start", agentId, message: `${agent.data.name} started: ${prompt.slice(0, 80)}` });
 
-  runSession(agentId, prompt, agent.profile, cwd ?? process.cwd(), abortController).catch(() => {});
+  if (getBackendMode() === "api-key") {
+    runApiSession(agentId, prompt, agent.profile, abortController).catch(() => {});
+  } else {
+    runSession(agentId, prompt, agent.profile, cwd ?? process.cwd(), abortController).catch(() => {});
+  }
 
   return task;
 }
@@ -184,6 +190,94 @@ async function runSession(
               if (currentAgent && result.evaluation) {
                 const trace = { id: result.traceId, agentId, agentName: agentData.name, category: agentData.category, taskId: session.task.id, prompt: session.task.prompt, toolCalls: [], turns: session.task.turns ?? 0, totalDurationMs: session.task.completedAt && session.task.startedAt ? session.task.completedAt - session.task.startedAt : 0, success: session.task.status === "completed", result: session.task.result, error: session.task.error, costUsd: session.task.costUsd ?? 0, timestamp: Date.now() };
                 await writeAllForRatchet(currentAgent, config, trace, result.evaluation, result, allResults);
+                emitEvent({ type: "vault_write", agentId, message: `${agentData.name} results written to vault` });
+              }
+            }
+          })
+          .catch(() => {});
+      }
+    }
+
+    registry.setTask(agentId, null);
+    activeSessions.delete(agentId);
+    emitUsage();
+  }
+}
+
+async function runApiSession(
+  agentId: string,
+  prompt: string,
+  profile: AgentProfile,
+  abortController: AbortController,
+) {
+  const registry = getRegistry();
+  const session = activeSessions.get(agentId);
+  if (!session) return;
+
+  try {
+    registry.updateAgent(agentId, { status: "working" });
+
+    const result = await runApiTask(prompt, profile, {
+      onText: () => {
+        registry.updateAgent(agentId, { status: "working" });
+      },
+      onToolUse: (toolName) => {
+        recordToolCall(agentId, { tool: toolName, args: {}, durationMs: 0, success: true });
+      },
+    }, abortController.signal, getAgentConfig(agentId)?.systemPromptSuffix);
+
+    session.task.completedAt = Date.now();
+    session.task.turns = result.turns;
+    session.task.costUsd = result.costUsd;
+
+    usage.totalCostUsd += result.costUsd;
+    usage.inputTokens += result.inputTokens;
+    usage.outputTokens += result.outputTokens;
+    emitUsage();
+
+    if (result.success) {
+      session.task.status = "completed";
+      session.task.result = result.result;
+      registry.updateAgent(agentId, { status: "idle", health: Math.min(100, (registry.getAgent(agentId)?.data.health ?? 80) + 5) });
+      emitEvent({ type: "task_complete", agentId, message: `${registry.getAgent(agentId)?.data.name} completed task` });
+    } else {
+      session.task.status = "failed";
+      session.task.error = result.error ?? "Unknown error";
+      registry.updateAgent(agentId, { status: "error" });
+      emitEvent({ type: "agent_error", agentId, message: `${registry.getAgent(agentId)?.data.name} failed: ${(result.error ?? "").slice(0, 80)}` });
+    }
+  } catch (err) {
+    if (session.task.status === "running") {
+      session.task.status = "failed";
+      session.task.error = err instanceof Error ? err.message : String(err);
+      session.task.completedAt = Date.now();
+      registry.updateAgent(agentId, { status: "error" });
+      emitEvent({ type: "agent_error", agentId, message: `${registry.getAgent(agentId)?.data.name} error: ${session.task.error.slice(0, 80)}` });
+    }
+  } finally {
+    if (session.task.status === "completed" || session.task.status === "failed") {
+      const agentData = registry.getAgent(agentId)?.data;
+      if (agentData) {
+        runRatchetCycle(agentData, session.task)
+          .then(async (ratchetResult) => {
+            if (!ratchetResult) return;
+            const stats = { ...agentData.stats };
+            if (ratchetResult.verdict === "kept") {
+              stats.ratchetImprovements++;
+              emitEvent({ type: "ratchet_kept", agentId, message: `${agentData.name} improved (${ratchetResult.baselineScore} → ${Math.round(ratchetResult.improvedScore ?? ratchetResult.baselineScore)})` });
+            } else if (ratchetResult.verdict === "reverted") {
+              stats.ratchetReverts++;
+              emitEvent({ type: "ratchet_reverted", agentId, message: `${agentData.name} improvement reverted` });
+            }
+            registry.updateAgent(agentId, { stats });
+
+            if (ratchetResult.evaluation && ratchetResult.traceId) {
+              const config = getAgentConfig(agentId);
+              const allResults = getRatchetHistoryForAgent(agentId);
+              const currentAgent = registry.getAgent(agentId)?.data;
+              if (currentAgent && ratchetResult.evaluation) {
+                const trace = { id: ratchetResult.traceId, agentId, agentName: agentData.name, category: agentData.category, taskId: session.task.id, prompt: session.task.prompt, toolCalls: [], turns: session.task.turns ?? 0, totalDurationMs: session.task.completedAt && session.task.startedAt ? session.task.completedAt - session.task.startedAt : 0, success: session.task.status === "completed", result: session.task.result, error: session.task.error, costUsd: session.task.costUsd ?? 0, timestamp: Date.now() };
+                await writeAllForRatchet(currentAgent, config, trace, ratchetResult.evaluation, ratchetResult, allResults);
                 emitEvent({ type: "vault_write", agentId, message: `${agentData.name} results written to vault` });
               }
             }
