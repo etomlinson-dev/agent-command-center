@@ -90,6 +90,11 @@ const AGENT_DEFS: AgentDef[] = [
   { name: "Wildcard", role: "special", category: "specialized" },
 ];
 
+function seededRandom(seed: number): number {
+  const x = Math.sin(seed * 9301 + 49297) * 49297;
+  return x - Math.floor(x);
+}
+
 export function generateDummyAgents(
   buildingPositions: Record<AgentCategory, [number, number, number]>,
   buildingSizes: Record<AgentCategory, [number, number, number]>,
@@ -100,7 +105,7 @@ export function generateDummyAgents(
     const buildingSize = buildingSizes[def.category];
     const angle = (i * 137.5 * Math.PI) / 180;
     const minRadius = Math.max(buildingSize[0], buildingSize[2]) / 2 + 1;
-    const radius = minRadius + Math.random() * 1.5;
+    const radius = minRadius + seededRandom(i) * 1.5;
 
     return {
       id: `agent-${i}`,
