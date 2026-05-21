@@ -74,7 +74,7 @@ export function ResourceBar() {
   const animOutputTokens = useAnimatedValue(claude.outputTokens);
 
   return (
-    <div className="glass fixed top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-5 px-5 py-3">
+    <div className="glass fixed top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-5 px-5 py-3">
       <div className="flex items-center gap-1.5 min-w-[60px]">
         <div
           className="w-2 h-2 rounded-full"
@@ -268,7 +268,7 @@ function ModeToggle({
 
       {settingsOpen && (
         <div
-          className="glass absolute top-full mt-2 right-0 p-3 rounded-lg z-50 min-w-[260px]"
+          className="glass absolute top-full mt-2 left-1/2 -translate-x-1/2 p-3 rounded-lg z-50 min-w-[260px]"
           style={{ border: "1px solid var(--ce-gray-light)" }}
         >
           <div className="text-[11px] uppercase tracking-wider text-[var(--ce-text-secondary)] mb-2">
