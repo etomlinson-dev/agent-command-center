@@ -107,17 +107,16 @@ export function generateDummyAgents(
     const minRadius = Math.max(buildingSize[0], buildingSize[2]) / 2 + 1;
     const radius = minRadius + seededRandom(i) * 1.5;
 
+    const px = Math.round((buildingPos[0] + Math.cos(angle) * radius) * 100) / 100;
+    const pz = Math.round((buildingPos[2] + Math.sin(angle) * radius) * 100) / 100;
+
     return {
       id: `agent-${i}`,
       name: def.name,
       role: def.role,
       category: def.category,
       status: "idle" as const,
-      position: [
-        buildingPos[0] + Math.cos(angle) * radius,
-        0,
-        buildingPos[2] + Math.sin(angle) * radius,
-      ],
+      position: [px, 0, pz],
       targetPosition: null,
       health: 100,
       xp: 0,
