@@ -47,7 +47,7 @@ export function CommandDock() {
   }
 
   return (
-    <div className="glass-strong fixed top-20 left-4 bottom-16 z-30 w-[340px] flex flex-col overflow-hidden">
+    <div className="glass-strong fixed top-[76px] left-4 bottom-16 z-30 w-[340px] flex flex-col overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-[rgba(127,214,66,0.1)] flex items-center gap-2 shrink-0">
         <div className="w-2 h-2 rounded-full bg-[var(--ce-green-primary)]" />
