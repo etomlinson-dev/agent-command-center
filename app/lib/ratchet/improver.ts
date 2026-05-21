@@ -1,7 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { query } from "@anthropic-ai/claude-agent-sdk";
+import type { Options, PermissionMode, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { Trace, Evaluation, ProposedImprovement, ImprovementType, AgentConfig } from "@/app/types/ratchet";
-
-const anthropic = new Anthropic();
 
 interface ImprovementSuggestion {
   type: ImprovementType;
@@ -63,20 +62,30 @@ export async function proposeImprovements(
   }
 
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1024,
-      messages: [
-        { role: "user", content: buildAnalysisPrompt(trace, evaluation, config) },
-      ],
+    const options: Partial<Options> = {
+      allowedTools: [],
+      permissionMode: "default" as PermissionMode,
+      maxTurns: 1,
+      maxBudgetUsd: 0.1,
+      persistSession: false,
+    };
+
+    let resultText = "";
+    const stream = query({
+      prompt: buildAnalysisPrompt(trace, evaluation, config),
+      options: options as Options,
     });
 
-    const text = response.content
-      .filter((block): block is Anthropic.TextBlock => block.type === "text")
-      .map((block) => block.text)
-      .join("");
+    for await (const message of stream) {
+      if (message.type === "result" && (message as SDKMessage & { subtype?: string }).subtype === "success") {
+        resultText = (message as SDKMessage & { result?: string }).result ?? "";
+      }
+    }
 
-    const suggestions: ImprovementSuggestion[] = JSON.parse(text);
+    const jsonMatch = resultText.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return [];
+
+    const suggestions: ImprovementSuggestion[] = JSON.parse(jsonMatch[0]);
 
     return suggestions
       .filter((s) => s.confidence >= 0.5)
