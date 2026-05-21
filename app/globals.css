@@ -1,26 +1,114 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Primary — ClearEdge green (neon/lime from logo swirl) */
+  --ce-green-primary: #7FD642;
+  --ce-green-bright: #A3E635;
+  --ce-green-dim: #4A8C23;
+  --ce-green-glow: rgba(127, 214, 66, 0.4);
+
+  /* Darks — from logo background */
+  --ce-black: #0A0A0A;
+  --ce-gray-darkest: #141414;
+  --ce-gray-dark: #1E1E1E;
+  --ce-gray-mid: #2A2A2A;
+  --ce-gray-light: #3A3A3A;
+
+  /* Text */
+  --ce-text-primary: #E8E8E8;
+  --ce-text-secondary: #888888;
+  --ce-text-accent: #7FD642;
+
+  /* Status colors */
+  --ce-status-working: #7FD642;
+  --ce-status-idle: #555555;
+  --ce-status-error: #E53E3E;
+  --ce-status-evolving: #A3E635;
+  --ce-status-communicating: #38BDF8;
+
+  /* Atmospheric */
+  --ce-fog: rgba(10, 10, 10, 0.6);
+  --ce-snow: rgba(200, 200, 200, 0.3);
+  --ce-spark: #7FD642;
+  --ce-ambient-light: #1a2a10;
+
+  /* Category accent colors */
+  --ce-cat-core: #7FD642;
+  --ce-cat-swarm: #A3E635;
+  --ce-cat-consensus: #38BDF8;
+  --ce-cat-github: #7FD642;
+  --ce-cat-perf: #F59E0B;
+  --ce-cat-security: #E53E3E;
+  --ce-cat-memory: #A78BFA;
+  --ce-cat-browser: #38BDF8;
+  --ce-cat-release: #A3E635;
+  --ce-cat-training: #A78BFA;
+  --ce-cat-docs: #888888;
+  --ce-cat-arch: #F59E0B;
+  --ce-cat-comm: #38BDF8;
+  --ce-cat-data: #A3E635;
+  --ce-cat-infra: #3A3A3A;
+  --ce-cat-special: #E8E8E8;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--ce-black);
+  --color-foreground: var(--ce-text-primary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-ce-green: var(--ce-green-primary);
+  --color-ce-green-bright: var(--ce-green-bright);
+  --color-ce-green-dim: var(--ce-green-dim);
+  --color-ce-black: var(--ce-black);
+  --color-ce-gray-darkest: var(--ce-gray-darkest);
+  --color-ce-gray-dark: var(--ce-gray-dark);
+  --color-ce-gray-mid: var(--ce-gray-mid);
+  --color-ce-gray-light: var(--ce-gray-light);
+  --color-ce-text-primary: var(--ce-text-primary);
+  --color-ce-text-secondary: var(--ce-text-secondary);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--ce-black);
+  color: var(--ce-text-primary);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.glass {
+  background: rgba(20, 20, 20, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(127, 214, 66, 0.15);
+  border-radius: 12px;
+}
+
+.glass-strong {
+  background: rgba(20, 20, 20, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(127, 214, 66, 0.2);
+  border-radius: 12px;
+}
+
+.glow-green {
+  box-shadow: 0 0 20px rgba(127, 214, 66, 0.3), 0 0 60px rgba(127, 214, 66, 0.1);
+}
+
+.glow-text {
+  text-shadow: 0 0 10px rgba(127, 214, 66, 0.5);
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--ce-gray-light);
+  border-radius: 2px;
 }
